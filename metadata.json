@@ -1,0 +1,8 @@
+{
+  "name": "RoamReceipt - Travel Expense Tracker",
+  "description": "A comprehensive mobile application for tracking travel-related expenses, managing trips, and analyzing spending patterns with real-time location tracking.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
