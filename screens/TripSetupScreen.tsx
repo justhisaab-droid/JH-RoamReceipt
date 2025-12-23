@@ -1,34 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Coords } from '../types';
+import { Coords, UserProfile } from '../types';
 import { useLocation } from '../hooks/useLocation';
 import { LocationService, PlaceResult } from '../services/LocationService';
 import { MetadataService } from '../services/MetadataService';
-import { ArrowLeftIcon } from '../components/Icons';
+import { ArrowLeftIcon, LogoIcon } from '../components/Icons';
 import { useAppState } from '../hooks/useAppState';
 
 interface TripSetupProps {
-  onStart: (params: { start: string, startCoords?: Coords, dest: string, destCoords?: Coords, type: string, vehicle: string, travelers: number }) => void;
+  user: UserProfile | null;
+  onStart: (params: { start: string, startCoords?: Coords, dest: string, destCoords?: Coords, type: string, vehicle: string, travelers: number }) => Promise<void>;
   onBack: () => void;
 }
 
-const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
+const TripSetupScreen: React.FC<TripSetupProps> = ({ user, onStart, onBack }) => {
   const { uid } = useAppState();
   const [startLocation, setStartLocation] = useState('');
   const [startCoords, setStartCoords] = useState<Coords | undefined>();
   const [destination, setDestination] = useState('');
   const [destCoords, setDestCoords] = useState<Coords | undefined>();
   
-  const [availableVehicles, setAvailableVehicles] = useState<string[]>([]);
-  const [availableTripTypes, setAvailableTripTypes] = useState<string[]>([]);
+  const [availableVehicles, setAvailableVehicles] = useState<string[]>(['Car', 'SUV', 'Truck', 'Bus']);
+  const [availableTripTypes, setAvailableTripTypes] = useState<string[]>(['Personal', 'Business']);
 
   const [selectedType, setSelectedType] = useState('Personal');
   const [isAddingCustomType, setIsAddingCustomType] = useState(false);
   const [customTypeName, setCustomTypeName] = useState('');
 
   const [selectedVehicle, setSelectedVehicle] = useState('Car');
-  const [isAddingCustomVehicle, setIsAddingCustomVehicle] = useState(false);
-  const [customVehicleName, setCustomVehicleName] = useState('');
-
+  const [isStarting, setIsStarting] = useState(false);
+  
   const [travelersCount, setTravelersCount] = useState(1);
   const [suggestions, setSuggestions] = useState<PlaceResult[]>([]);
   const [searchingFor, setSearchingFor] = useState<'start' | 'dest' | null>(null);
@@ -41,10 +41,14 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
     detect((address) => setStartLocation(address));
     const loadMetadata = async () => {
        if (!uid) return;
-       const v = await MetadataService.getVehicles(uid);
        const t = await MetadataService.getTripTypes(uid);
-       setAvailableVehicles(v);
        setAvailableTripTypes(t);
+
+       const v = await MetadataService.getVehicles(uid);
+       setAvailableVehicles(v);
+       if (v.length > 0) {
+         setSelectedVehicle(v[0]);
+       }
     };
     loadMetadata();
   }, [uid]);
@@ -95,38 +99,46 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
   };
 
   const handleStart = async () => {
-    if (!uid) return;
+    if (!uid || isStarting) return;
+    
+    setIsStarting(true);
     let finalType = selectedType;
     if (isAddingCustomType && customTypeName.trim()) {
       await MetadataService.addTripType(uid, customTypeName.trim());
       finalType = customTypeName.trim();
     }
-    let finalVehicle = selectedVehicle;
-    if (isAddingCustomVehicle && customVehicleName.trim()) {
-      await MetadataService.addVehicle(uid, customVehicleName.trim());
-      finalVehicle = customVehicleName.trim();
+    
+    try {
+      await onStart({ 
+        start: startLocation, 
+        startCoords, 
+        dest: destination, 
+        destCoords, 
+        type: finalType, 
+        vehicle: selectedVehicle, 
+        travelers: travelersCount 
+      });
+    } catch (e) {
+      console.error(e);
+      setIsStarting(false);
     }
-    onStart({ 
-      start: startLocation, 
-      startCoords, 
-      dest: destination, 
-      destCoords, 
-      type: finalType, 
-      vehicle: finalVehicle, 
-      travelers: travelersCount 
-    });
   };
+
+  const isFormComplete = destination && startLocation && !isDetecting && selectedVehicle && (!isAddingCustomType || customTypeName.trim());
 
   return (
     <div className="flex flex-col h-full bg-white overflow-hidden relative">
-      <div className="flex items-center gap-4 p-6 border-b border-gray-50">
-        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 active:scale-90 transition-all">
-          <ArrowLeftIcon className="w-5 h-5" />
-        </button>
-        <div>
-          <h2 className="text-xl font-black text-gray-900 leading-none">Trip Details</h2>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Configure your journey</p>
+      <div className="flex items-center justify-between p-6 border-b border-gray-50">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} disabled={isStarting} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 active:scale-90 transition-all disabled:opacity-50">
+            <ArrowLeftIcon className="w-5 h-5" />
+          </button>
+          <div>
+            <h2 className="text-xl font-black text-gray-900 leading-none">Trip Details</h2>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Configure your journey</p>
+          </div>
         </div>
+        <LogoIcon className="w-8 h-8" />
       </div>
 
       {error && (
@@ -142,7 +154,7 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
         <div className="relative group">
           <div className="flex justify-between items-center mb-2">
             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">Starting From</label>
-            <button onClick={() => detect(setStartLocation)} disabled={isDetecting} className="text-[10px] font-black text-indigo-600 uppercase">
+            <button onClick={() => detect(setStartLocation)} disabled={isDetecting || isStarting} className="text-[10px] font-black text-indigo-600 uppercase disabled:opacity-50">
               {isDetecting ? 'Locating...' : 'Current'}
             </button>
           </div>
@@ -151,8 +163,9 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
               type="text"
               placeholder="Enter pickup point"
               value={startLocation}
+              disabled={isStarting}
               onChange={(e) => onInputChange(e.target.value, 'start')}
-              className="w-full p-5 pl-14 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800 shadow-sm"
+              className="w-full p-5 pl-14 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800 shadow-sm disabled:opacity-50"
             />
             {isSearching && searchingFor === 'start' && <div className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>}
           </div>
@@ -172,8 +185,9 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
               type="text"
               placeholder="Where are we going?"
               value={destination}
+              disabled={isStarting}
               onChange={(e) => onInputChange(e.target.value, 'dest')}
-              className="w-full p-5 pl-14 bg-gray-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800 shadow-sm"
+              className="w-full p-5 pl-14 bg-gray-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl transition-all outline-none font-bold text-gray-800 shadow-sm disabled:opacity-50"
             />
             {isSearching && searchingFor === 'dest' && <div className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>}
           </div>
@@ -190,34 +204,17 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
           <label className="block text-[11px] font-black text-gray-400 uppercase tracking-widest px-1">Vehicle Selection</label>
           <div className="relative">
             <select
-              value={isAddingCustomVehicle ? 'ADD_CUSTOM' : selectedVehicle}
-              onChange={(e) => {
-                if (e.target.value === 'ADD_CUSTOM') {
-                  setIsAddingCustomVehicle(true);
-                  setSelectedVehicle('');
-                } else {
-                  setIsAddingCustomVehicle(false);
-                  setSelectedVehicle(e.target.value);
-                }
-              }}
-              className="w-full p-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 appearance-none shadow-sm transition-all"
+              value={selectedVehicle}
+              disabled={isStarting}
+              onChange={(e) => setSelectedVehicle(e.target.value)}
+              className="w-full p-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 appearance-none shadow-sm transition-all disabled:opacity-50"
             >
               {availableVehicles.map(v => <option key={v} value={v}>{v}</option>)}
-              <option value="ADD_CUSTOM" className="text-indigo-600">+ Add Custom Vehicle...</option>
             </select>
-          </div>
-          {isAddingCustomVehicle && (
-            <div className="animate-in slide-in-from-top-2 fade-in">
-              <input
-                type="text"
-                value={customVehicleName}
-                onChange={(e) => setCustomVehicleName(e.target.value)}
-                placeholder="Enter vehicle (e.g. Royal Enfield)"
-                className="w-full p-4 bg-indigo-50 border-2 border-indigo-200 rounded-2xl outline-none font-bold text-indigo-900 placeholder:text-indigo-300"
-                autoFocus
-              />
+            <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </div>
-          )}
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -225,6 +222,7 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
           <div className="relative">
             <select
               value={isAddingCustomType ? 'ADD_CUSTOM' : selectedType}
+              disabled={isStarting}
               onChange={(e) => {
                 if (e.target.value === 'ADD_CUSTOM') {
                   setIsAddingCustomType(true);
@@ -234,7 +232,7 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
                   setSelectedType(e.target.value);
                 }
               }}
-              className="w-full p-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 appearance-none shadow-sm transition-all"
+              className="w-full p-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 appearance-none shadow-sm transition-all disabled:opacity-50"
             >
               {availableTripTypes.map(t => <option key={t} value={t}>{t}</option>)}
               <option value="ADD_CUSTOM" className="text-indigo-600">+ Add Custom Category...</option>
@@ -245,9 +243,10 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
               <input
                 type="text"
                 value={customTypeName}
+                disabled={isStarting}
                 onChange={(e) => setCustomTypeName(e.target.value)}
                 placeholder="Enter category (e.g. Work Retreat)"
-                className="w-full p-4 bg-indigo-50 border-2 border-indigo-200 rounded-2xl outline-none font-bold text-indigo-900 placeholder:text-indigo-300"
+                className="w-full p-4 bg-indigo-50 border-2 border-indigo-200 rounded-2xl outline-none font-bold text-indigo-900 placeholder:text-indigo-300 disabled:opacity-50"
                 autoFocus
               />
             </div>
@@ -259,9 +258,9 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
           <div className="flex items-center justify-between bg-gray-50 p-4 rounded-2xl">
             <span className="font-bold text-sm">Number of People</span>
             <div className="flex items-center gap-4 bg-white p-1 rounded-xl shadow-sm">
-              <button onClick={() => setTravelersCount(Math.max(1, travelersCount - 1))} className="w-10 h-10 text-indigo-600 font-black">-</button>
+              <button onClick={() => setTravelersCount(Math.max(1, travelersCount - 1))} disabled={isStarting} className="w-10 h-10 text-indigo-600 font-black disabled:opacity-30">-</button>
               <span className="font-black">{travelersCount}</span>
-              <button onClick={() => setTravelersCount(Math.min(20, travelersCount + 1))} className="w-10 h-10 text-indigo-600 font-black">+</button>
+              <button onClick={() => setTravelersCount(Math.min(20, travelersCount + 1))} disabled={isStarting} className="w-10 h-10 text-indigo-600 font-black disabled:opacity-30">+</button>
             </div>
           </div>
         </div>
@@ -270,10 +269,21 @@ const TripSetupScreen: React.FC<TripSetupProps> = ({ onStart, onBack }) => {
       <div className="absolute bottom-0 left-0 right-0 p-6 bg-white border-t border-gray-50 shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
         <button
           onClick={handleStart}
-          disabled={!destination || !startLocation || isDetecting || (isAddingCustomVehicle && !customVehicleName.trim()) || (isAddingCustomType && !customTypeName.trim())}
-          className={`w-full py-5 rounded-2xl font-black text-lg transition-all active:scale-95 ${destination && startLocation && !isDetecting ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100' : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+          disabled={!isFormComplete || isStarting}
+          className={`w-full py-5 rounded-2xl font-black text-lg transition-all flex items-center justify-center gap-3 active:scale-95 ${
+            isFormComplete && !isStarting 
+              ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100' 
+              : 'bg-gray-100 text-gray-300 cursor-not-allowed'
+          }`}
         >
-          GO LIVE
+          {isStarting ? (
+            <>
+              <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+              <span>STARTING JOURNEY...</span>
+            </>
+          ) : (
+            'GO LIVE'
+          )}
         </button>
       </div>
     </div>

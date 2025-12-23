@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserProfile, Trip, TripType } from '../types';
 import { APP_CONFIG } from '../constants';
-import { UserIcon, ClockIcon, PlusIcon, MapIcon, PinIcon, ArrowRightIcon } from '../components/Icons';
+import { UserIcon, ClockIcon, PlusIcon, MapIcon, PinIcon, ArrowRightIcon, LogoIcon, LogoText, RouteIcon } from '../components/Icons';
 
 interface DashboardProps {
   user: UserProfile | null;
@@ -12,6 +12,7 @@ interface DashboardProps {
   onViewStats: () => void;
   onViewProfile: () => void;
   onGoToActiveTrip: () => void;
+  onViewArchive: () => void;
 }
 
 const DashboardScreen: React.FC<DashboardProps> = ({ 
@@ -22,7 +23,8 @@ const DashboardScreen: React.FC<DashboardProps> = ({
   onViewTrip, 
   onViewStats, 
   onViewProfile,
-  onGoToActiveTrip 
+  onGoToActiveTrip,
+  onViewArchive
 }) => {
   const currentMonthTrips = trips.filter(t => new Date(t.startTime).getMonth() === new Date().getMonth());
   const totalExpense = currentMonthTrips.reduce((sum, t) => 
@@ -33,9 +35,12 @@ const DashboardScreen: React.FC<DashboardProps> = ({
     <div className="flex flex-col h-full bg-[#F9FAFB] overflow-y-auto pb-32 animate-in fade-in duration-500">
       {/* Header */}
       <div className="px-6 pt-10 pb-6 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-black text-gray-900 tracking-tight">RoamReceipt</h1>
-          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Namaste, {user?.firstName || 'Explorer'}</p>
+        <div className="flex items-center gap-3">
+          <LogoIcon className="w-10 h-10" />
+          <div>
+            <LogoText size="text-2xl" />
+            <p className="text-gray-400 text-[9px] font-black uppercase tracking-widest mt-0.5">Namaste, {user?.firstName || 'Explorer'}</p>
+          </div>
         </div>
         <button 
           onClick={onViewProfile}
@@ -46,6 +51,41 @@ const DashboardScreen: React.FC<DashboardProps> = ({
       </div>
 
       <div className="px-6 space-y-6">
+        {/* Active Trip Highlight (NEW) */}
+        {activeTrip && (
+          <div 
+            onClick={onGoToActiveTrip}
+            className="bg-white border-2 border-indigo-600/20 rounded-[32px] p-6 shadow-xl shadow-indigo-100 relative overflow-hidden group cursor-pointer active:scale-[0.98] transition-all"
+          >
+            <div className="absolute top-0 right-0 p-4">
+              <div className="flex items-center gap-1.5 bg-indigo-600 px-3 py-1 rounded-full shadow-lg">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                <span className="text-[9px] font-black text-white uppercase tracking-wider">Live Now</span>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                <RouteIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ongoing Journey</p>
+                <h4 className="font-black text-gray-900 truncate max-w-[180px]">{activeTrip.destination}</h4>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-between pt-4 border-t border-gray-50">
+               <div className="flex items-center gap-2">
+                 <span className="text-xs font-bold text-gray-700">{activeTrip.expenses.length} stops recorded</span>
+               </div>
+               <div className="flex items-center gap-1 text-indigo-600">
+                  <span className="text-[10px] font-black uppercase">Resume</span>
+                  <ArrowRightIcon className="w-4 h-4" />
+               </div>
+            </div>
+          </div>
+        )}
+
         {/* Modern Spending Card */}
         <div className="bg-indigo-600 rounded-[32px] p-8 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden group">
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-700" />
@@ -71,7 +111,12 @@ const DashboardScreen: React.FC<DashboardProps> = ({
         {/* Quick Actions */}
         <div className="flex justify-between items-center pt-2">
           <h3 className="text-xl font-black text-gray-900">Recent Trips</h3>
-          <button className="text-indigo-600 text-xs font-black uppercase tracking-widest">See Archive</button>
+          <button 
+            onClick={onViewArchive}
+            className="text-indigo-600 text-xs font-black uppercase tracking-widest"
+          >
+            See Archive
+          </button>
         </div>
 
         {/* Trips List */}

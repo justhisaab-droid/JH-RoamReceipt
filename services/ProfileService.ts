@@ -1,7 +1,8 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { UserProfile } from "../types";
 import { db } from "./FirestoreService";
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export class ProfileService {
   /**
@@ -23,9 +24,9 @@ export class ProfileService {
               firstName: { type: Type.STRING },
               lastName: { type: Type.STRING },
               dob: { type: Type.STRING, description: "Date of birth in YYYY-MM-DD format" },
-              gender: { type: Type.STRING, description: "One of: Male, Female, Other" },
+              gender: { type: Type.STRING, description: "One of: Male, Female, Other" }
             },
-            required: ["firstName", "lastName"]
+            required: ["firstName", "lastName", "dob"]
           }
         }
       });
@@ -37,14 +38,45 @@ export class ProfileService {
     }
   }
 
+  /**
+   * Saves user profile to the 'users' collection (User Table).
+   */
   static async saveToFirestore(uid: string, profile: UserProfile): Promise<void> {
-    const profileRef = doc(db, 'profiles', uid);
-    await setDoc(profileRef, profile, { merge: true });
+    if (uid.startsWith('mock_')) {
+      localStorage.setItem(`user_${uid}`, JSON.stringify(profile));
+      return;
+    }
+    try {
+      // Primary 'users' collection as requested
+      const userRef = doc(db, 'users', uid);
+      await setDoc(userRef, {
+        ...profile,
+        updatedAt: serverTimestamp(),
+        // Add a created flag if it's the first time
+        createdAt: serverTimestamp() 
+      }, { merge: true });
+    } catch (e) {
+      console.warn("Firestore 'users' save failed, falling back to local storage", e);
+      localStorage.setItem(`user_${uid}`, JSON.stringify(profile));
+    }
   }
 
+  /**
+   * Fetches user profile from the 'users' collection.
+   */
   static async getFromFirestore(uid: string): Promise<UserProfile | null> {
-    const profileRef = doc(db, 'profiles', uid);
-    const snap = await getDoc(profileRef);
-    return snap.exists() ? (snap.data() as UserProfile) : null;
+    if (uid.startsWith('mock_')) {
+      const data = localStorage.getItem(`user_${uid}`);
+      return data ? JSON.parse(data) : null;
+    }
+    try {
+      const userRef = doc(db, 'users', uid);
+      const snap = await getDoc(userRef);
+      if (snap.exists()) return snap.data() as UserProfile;
+    } catch (e) {
+      console.warn("Firestore fetch from 'users' failed, checking local storage", e);
+    }
+    const localData = localStorage.getItem(`user_${uid}`);
+    return localData ? JSON.parse(localData) : null;
   }
 }

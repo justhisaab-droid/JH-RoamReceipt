@@ -1,7 +1,7 @@
-
 import React from 'react';
 import { Trip } from '../types';
 import { APP_CONFIG } from '../constants';
+import { LogoIcon } from '../components/Icons';
 
 interface SummaryProps {
   trip: Trip;
@@ -14,7 +14,10 @@ const TripSummaryScreen: React.FC<SummaryProps> = ({ trip, onFinish }) => {
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Celebration Header */}
-      <div className="bg-emerald-500 px-6 pt-12 pb-16 text-white text-center rounded-b-[40px] shadow-lg">
+      <div className="bg-emerald-500 px-6 pt-12 pb-16 text-white text-center rounded-b-[40px] shadow-lg relative overflow-hidden">
+        <div className="absolute top-4 right-6 opacity-30">
+          <LogoIcon className="w-16 h-16" />
+        </div>
         <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
           <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>

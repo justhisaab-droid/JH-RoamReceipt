@@ -6,7 +6,7 @@ import { auth, googleProvider } from './FirebaseService';
 
 export class EmailAuthService {
   /**
-   * Sign in with Google Popup.
+   * Sign in with Google Popup using the registered singleton instances.
    */
   static async loginWithGoogle(): Promise<UserCredential> {
     try {

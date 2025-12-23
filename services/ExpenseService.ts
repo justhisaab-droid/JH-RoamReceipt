@@ -1,8 +1,6 @@
-
 import { Expense } from '../types';
 import { GoogleGenAI, Type } from "@google/genai";
 import { db } from "./FirestoreService";
-// Fixed: Switched from 'firebase/firestore/lite' to 'firebase/firestore' to resolve missing export errors
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export interface CategoryItem {
@@ -31,10 +29,20 @@ export class ExpenseService {
   ];
 
   static async getAllCategories(userId: string): Promise<CategoryItem[]> {
-    const metadataRef = doc(db, 'metadata', `${userId}_categories`);
-    const snap = await getDoc(metadataRef);
-    const custom = snap.exists() ? (snap.data() as { list: CategoryItem[] })?.list || [] : [];
-    return [...this.DEFAULT_CATEGORIES, ...custom];
+    const localKey = `categories_${userId}`;
+    const localData = JSON.parse(localStorage.getItem(localKey) || '[]');
+    
+    if (userId.startsWith('mock_')) return [...this.DEFAULT_CATEGORIES, ...localData];
+
+    try {
+      const metadataRef = doc(db, 'metadata', `${userId}_categories`);
+      const snap = await getDoc(metadataRef);
+      const custom = snap.exists() ? (snap.data() as { list: CategoryItem[] })?.list || [] : [];
+      return [...this.DEFAULT_CATEGORIES, ...custom];
+    } catch (e) {
+      console.warn("Firestore getAllCategories failed", e);
+      return [...this.DEFAULT_CATEGORIES, ...localData];
+    }
   }
 
   static async addCustomCategory(userId: string, name: string): Promise<CategoryItem> {
@@ -44,11 +52,21 @@ export class ExpenseService {
     if (existing) return existing;
 
     const newCat: CategoryItem = { name: normalizedName, icon: '✨', isCustom: true };
-    const metadataRef = doc(db, 'metadata', `${userId}_categories`);
-    const snap = await getDoc(metadataRef);
-    const customOnly = snap.exists() ? (snap.data() as { list: CategoryItem[] })?.list || [] : [];
-    customOnly.push(newCat);
-    await setDoc(metadataRef, { list: customOnly });
+    
+    // Save locally
+    const localKey = `categories_${userId}`;
+    const localCustom = JSON.parse(localStorage.getItem(localKey) || '[]');
+    localCustom.push(newCat);
+    localStorage.setItem(localKey, JSON.stringify(localCustom));
+
+    if (!userId.startsWith('mock_')) {
+      try {
+        const metadataRef = doc(db, 'metadata', `${userId}_categories`);
+        await setDoc(metadataRef, { list: localCustom });
+      } catch (e) {
+        console.warn("Firestore addCustomCategory failed", e);
+      }
+    }
     return newCat;
   }
 
@@ -56,7 +74,6 @@ export class ExpenseService {
    * Extract receipt details using Gemini 3 Flash.
    */
   static async extractReceiptDetails(base64Image: string, mimeType: string): Promise<ExtractedReceipt> {
-    // Correct initialization with named parameter as per guidelines
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const response = await ai.models.generateContent({
@@ -81,7 +98,6 @@ export class ExpenseService {
           },
         },
       });
-      // Correct extraction of text from GenerateContentResponse
       const text = response.text;
       return JSON.parse(text || "{}");
     } catch (error) {

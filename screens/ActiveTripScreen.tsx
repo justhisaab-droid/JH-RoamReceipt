@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trip } from '../types';
 import { APP_CONFIG } from '../constants';
 import { ExpenseService, CategoryItem } from '../services/ExpenseService';
-import { HomeIcon, PinIcon, MapIcon, PlusIcon, RouteIcon, XIcon, ArrowRightIcon } from '../components/Icons';
+import { HomeIcon, PinIcon, MapIcon, PlusIcon, RouteIcon, XIcon, ArrowRightIcon, LogoIcon } from '../components/Icons';
 import { useAppState } from '../hooks/useAppState';
 
 interface ActiveTripProps {
@@ -51,12 +51,15 @@ const ActiveTripScreen: React.FC<ActiveTripProps> = ({ trip, onAddStop, onEndTri
         <div className="absolute top-10 left-6 right-6 z-20 flex flex-col gap-3">
           <div className="bg-white/90 backdrop-blur-md p-5 rounded-[28px] shadow-2xl border border-white/20 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><RouteIcon className="w-6 h-6" /></div>
+              <div className="relative">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg"><RouteIcon className="w-6 h-6" /></div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full animate-pulse" />
+              </div>
               <div className="overflow-hidden">
-                <p className="text-[9px] uppercase font-black text-gray-500 tracking-widest flex items-center gap-2">
-                  Dest: {trip.destination}
-                  {!isOnline && <span className="text-amber-600 font-black tracking-tighter">[OFFLINE]</span>}
-                </p>
+                <div className="flex items-center gap-2">
+                   <p className="text-[9px] uppercase font-black text-gray-500 tracking-widest">Live: {trip.destination}</p>
+                   {!isOnline && <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-[7px] font-black uppercase">Offline</span>}
+                </div>
                 <p className="font-black text-gray-900 text-lg leading-none mt-0.5">{formatTime(duration)}</p>
               </div>
             </div>
@@ -70,6 +73,10 @@ const ActiveTripScreen: React.FC<ActiveTripProps> = ({ trip, onAddStop, onEndTri
           <div className="relative w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-3xl">
             <MapIcon className={`w-10 h-10 ${isOnline ? 'text-indigo-600' : 'text-amber-500'}`} />
           </div>
+        </div>
+        
+        <div className="absolute bottom-10 left-0 right-0 flex justify-center z-10">
+          <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em] animate-pulse">Tracking active routes in India</p>
         </div>
       </div>
 

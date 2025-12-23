@@ -1,8 +1,6 @@
-
 export enum Screen {
   SPLASH = 'SPLASH',
   LOGIN = 'LOGIN',
-  OTP = 'OTP',
   PROFILE_SETUP = 'PROFILE_SETUP',
   DASHBOARD = 'DASHBOARD',
   TRIP_SETUP = 'TRIP_SETUP',
@@ -11,17 +9,13 @@ export enum Screen {
   TRIP_SUMMARY = 'TRIP_SUMMARY',
   TRIP_DETAILS = 'TRIP_DETAILS',
   MONTHLY_STATS = 'MONTHLY_STATS',
-  PROFILE_SETTINGS = 'PROFILE_SETTINGS'
+  PROFILE_SETTINGS = 'PROFILE_SETTINGS',
+  TRIP_ARCHIVE = 'TRIP_ARCHIVE'
 }
 
-// Added missing TripType enum used for categorizing trips in the UI and services
 export enum TripType {
   BUSINESS = 'Business',
-  PERSONAL = 'Personal',
-  FAMILY = 'Family',
-  PILGRIMAGE = 'Pilgrimage',
-  SOLO = 'Solo',
-  VACATION = 'Vacation'
+  PERSONAL = 'Personal'
 }
 
 export interface Coords {
@@ -44,7 +38,7 @@ export interface Expense {
 
 export interface Trip {
   id: string;
-  userId: string; // Required for Firestore grouping
+  userId: string;
   destination: string;
   destCoords?: Coords;
   startLocation: string;

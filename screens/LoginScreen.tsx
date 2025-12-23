@@ -1,69 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { RecaptchaVerifier, ConfirmationResult } from 'firebase/auth';
+import React, { useState } from 'react';
 import { APP_CONFIG } from '../constants';
-import { PhoneAuthService } from '../services/PhoneAuthService';
-import { EmailAuthService } from '../services/EmailAuthService';
+import { AuthService } from '../services/AuthService';
+import { LogoIcon, LogoText } from '../components/Icons';
 
 interface LoginScreenProps {
-  onLogin: (phone: string, result: ConfirmationResult) => void;
+  onLogin: (phone: string) => void;
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const verifierRef = useRef<RecaptchaVerifier | null>(null);
 
-  const initVerifier = () => {
-    try {
-      if (verifierRef.current) {
-        verifierRef.current.clear();
-        verifierRef.current = null;
-      }
-      const container = document.getElementById('recaptcha-container');
-      if (container) {
-        container.innerHTML = '';
-        verifierRef.current = PhoneAuthService.createVerifier('recaptcha-container', { size: 'invisible' });
-      }
-    } catch (err) {
-      console.error('Verifier init failed', err);
-    }
-  };
-
-  useEffect(() => {
-    initVerifier();
-    return () => {
-      if (verifierRef.current) verifierRef.current.clear();
-    };
-  }, []);
-
-  const handlePhoneSubmit = async (e: React.FormEvent) => {
+  const handlePhoneSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (phone.length !== 10 || isLoading) return;
-    if (!verifierRef.current) {
-      setError("Security check loading...");
-      initVerifier();
-      return;
-    }
 
     setIsLoading(true);
     setError(null);
-    try {
-      const result = await PhoneAuthService.sendOTP(phone, verifierRef.current);
-      onLogin(phone, result);
-    } catch (err: any) {
-      setError(err.message);
+    
+    // Simulate a brief network delay for realism
+    setTimeout(() => {
+      onLogin(phone);
       setIsLoading(false);
-      initVerifier();
-    }
+    }, 600);
   };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      await EmailAuthService.loginWithGoogle();
+      await AuthService.loginWithGoogle();
     } catch (err: any) {
       setError(err.message);
       setIsLoading(false);
@@ -72,8 +39,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
   return (
     <div className="flex flex-col h-full bg-white p-8 animate-in fade-in duration-500 overflow-y-auto">
-      <div className="mt-12 mb-12 text-center">
-        <h2 className="text-5xl font-black text-gray-900 tracking-tighter">RoamReceipt</h2>
+      <div className="mt-12 mb-12 text-center flex flex-col items-center">
+        <LogoIcon className="w-20 h-20 mb-4" />
+        <LogoText size="text-5xl" />
         <p className="text-gray-400 mt-3 font-black uppercase text-[10px] tracking-[0.3em]">India's Smart Ledger</p>
       </div>
 
@@ -96,8 +64,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          <div id="recaptcha-container" />
-
           <button
             type="submit"
             disabled={phone.length !== 10 || isLoading}
@@ -110,14 +76,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             {isLoading ? (
               <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              'CONTINUE WITH OTP'
+              'LOGIN'
             )}
           </button>
         </form>
 
         <div className="flex items-center gap-4">
           <div className="flex-1 h-[1.5px] bg-gray-100"></div>
-          <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">secure login</span>
+          <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">secure access</span>
           <div className="flex-1 h-[1.5px] bg-gray-100"></div>
         </div>
 
@@ -140,6 +106,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             <p className="text-[10px] font-black text-red-600 uppercase tracking-tight text-center leading-relaxed">
               {error}
             </p>
+            {error.includes("UNAUTHORIZED DOMAIN") && (
+              <p className="mt-2 text-[9px] text-gray-500 font-medium text-center italic">
+                Tip: Copy the domain above and add it to your Firebase whitelist.
+              </p>
+            )}
           </div>
         )}
       </div>

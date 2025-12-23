@@ -2,7 +2,6 @@ import React from 'react';
 import { Screen } from './types';
 import SplashScreen from './screens/SplashScreen';
 import LoginScreen from './screens/LoginScreen';
-import OTPScreen from './screens/OTPScreen';
 import ProfileSetupScreen from './screens/ProfileSetupScreen';
 import DashboardScreen from './screens/DashboardScreen';
 import TripSetupScreen from './screens/TripSetupScreen';
@@ -12,6 +11,7 @@ import TripSummaryScreen from './screens/TripSummaryScreen';
 import TripDetailsScreen from './screens/TripDetailsScreen';
 import MonthlyStatsScreen from './screens/MonthlyStatsScreen';
 import ProfileSettingsScreen from './screens/ProfileSettingsScreen';
+import TripArchiveScreen from './screens/TripArchiveScreen';
 import { useAppState } from './hooks/useAppState';
 import { HomeIcon, ClockIcon, UserIcon, MapIcon, CloudIcon, CloudOffIcon, RefreshIcon } from './components/Icons';
 
@@ -25,9 +25,7 @@ const App: React.FC = () => {
       case Screen.SPLASH:
         return <SplashScreen onComplete={() => state.navigate(Screen.LOGIN)} />;
       case Screen.LOGIN:
-        return <LoginScreen onLogin={(phone, result) => state.login(phone, result)} />;
-      case Screen.OTP:
-        return <OTPScreen phone={state.phone} onVerify={state.verifyOTP} onBack={() => state.navigate(Screen.LOGIN)} />;
+        return <LoginScreen onLogin={(phone) => state.login(phone)} />;
       case Screen.PROFILE_SETUP:
         return <ProfileSetupScreen onSave={state.saveProfile} />;
       case Screen.DASHBOARD:
@@ -41,10 +39,17 @@ const App: React.FC = () => {
             onViewStats={() => state.navigate(Screen.MONTHLY_STATS)}
             onViewProfile={() => state.navigate(Screen.PROFILE_SETTINGS)}
             onGoToActiveTrip={() => state.navigate(Screen.ACTIVE_TRIP)}
+            onViewArchive={() => state.navigate(Screen.TRIP_ARCHIVE)}
           />
         );
       case Screen.TRIP_SETUP:
-        return <TripSetupScreen onStart={state.startTrip} onBack={() => state.navigate(Screen.DASHBOARD)} />;
+        return (
+          <TripSetupScreen 
+            user={state.user}
+            onStart={state.startTrip} 
+            onBack={() => state.navigate(Screen.DASHBOARD)} 
+          />
+        );
       case Screen.ACTIVE_TRIP:
         return (
           <ActiveTripScreen 
@@ -67,11 +72,20 @@ const App: React.FC = () => {
       case Screen.TRIP_SUMMARY:
         return <TripSummaryScreen trip={state.trips[0]} onFinish={() => state.navigate(Screen.DASHBOARD)} />;
       case Screen.TRIP_DETAILS:
-        return <TripDetailsScreen trip={state.selectedTrip} onBack={() => state.navigate(Screen.DASHBOARD)} />;
+        return <TripDetailsScreen trip={state.selectedTrip} onBack={() => state.navigate(Screen.TRIP_ARCHIVE)} />;
       case Screen.MONTHLY_STATS:
         return <MonthlyStatsScreen trips={state.trips} onBack={() => state.navigate(Screen.DASHBOARD)} />;
       case Screen.PROFILE_SETTINGS:
         return <ProfileSettingsScreen user={state.user} onBack={() => state.navigate(Screen.DASHBOARD)} onLogout={state.logout} />;
+      case Screen.TRIP_ARCHIVE:
+        return (
+          <TripArchiveScreen 
+            trips={state.trips} 
+            onBack={() => state.navigate(Screen.DASHBOARD)} 
+            onViewTrip={state.viewTrip}
+            onDeleteTrip={state.deleteTrip}
+          />
+        );
       default:
         return <SplashScreen onComplete={() => state.navigate(Screen.LOGIN)} />;
     }
@@ -115,7 +129,6 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex flex-col items-end gap-1">
-            {/* Sync Status Badge */}
             <div className={`px-2 py-0.5 rounded-full flex items-center gap-1.5 transition-all ${
               state.isOnline ? 'bg-white/10' : 'bg-amber-500/20 animate-pulse'
             }`}>
@@ -141,7 +154,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Android Bottom Navigation */}
       {isMainTab && (
         <div className="h-20 bg-white/80 backdrop-blur-xl border-t border-gray-100 flex items-center justify-around px-4 z-50 pb-2">
           <NavButton 
@@ -195,7 +207,6 @@ const App: React.FC = () => {
   );
 };
 
-// Fix: Cast icon to React.ReactElement<{ className?: string }> to allow className prop in React.cloneElement
 const NavButton: React.FC<{ active: boolean, onClick: () => void, icon: React.ReactNode, label: string }> = ({ active, onClick, icon, label }) => (
   <button 
     onClick={onClick}

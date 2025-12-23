@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Trip } from '../types';
 import { APP_CONFIG } from '../constants';
-import { MapIcon, CameraIcon } from '../components/Icons';
+import { MapIcon, CameraIcon, LogoIcon } from '../components/Icons';
 
 interface DetailsProps {
   trip: Trip | null;
@@ -21,6 +20,7 @@ const TripDetailsScreen: React.FC<DetailsProps> = ({ trip, onBack }) => {
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
+        <LogoIcon className="absolute top-6 right-6 w-10 h-10 z-10 opacity-40" />
         {/* Placeholder for real map */}
         <div className="w-full h-full bg-blue-50 flex items-center justify-center opacity-50 overflow-hidden">
              <div className="scale-150 rotate-12 opacity-10">

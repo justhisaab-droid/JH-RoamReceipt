@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { APP_CONFIG } from '../constants';
+import { LogoIcon } from '../components/Icons';
 
 interface OTPScreenProps {
   phone: string;
@@ -52,9 +52,12 @@ const OTPScreen: React.FC<OTPScreenProps> = ({ phone, onVerify, onBack }) => {
 
   return (
     <div className="flex flex-col h-full bg-white p-8">
-      <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 mb-6 transition-transform active:scale-90">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-      </button>
+      <div className="flex justify-between items-center mb-8">
+        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 transition-transform active:scale-90">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <LogoIcon className="w-8 h-8" />
+      </div>
 
       <div className="mb-10">
         <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Verify Code</h2>

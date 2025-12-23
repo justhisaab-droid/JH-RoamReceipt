@@ -8,7 +8,7 @@ import { APP_CONFIG } from '../constants';
 
 export class PhoneAuthService {
   /**
-   * Creates a new RecaptchaVerifier instance.
+   * Creates a new RecaptchaVerifier instance using the registered auth singleton.
    */
   static createVerifier(containerId: string, options: any = { size: 'normal' }): RecaptchaVerifier {
     try {

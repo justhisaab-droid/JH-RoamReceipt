@@ -1,6 +1,6 @@
-
 import React, { useState, useMemo } from 'react';
 import { ProfileService } from '../services/ProfileService';
+import { LogoIcon, LogoText } from '../components/Icons';
 
 interface ProfileSetupProps {
   onSave: (data: { firstName: string, lastName: string, dob: string, gender: string }) => void;
@@ -53,7 +53,12 @@ const ProfileSetupScreen: React.FC<ProfileSetupProps> = ({ onSave }) => {
 
   return (
     <div className="flex flex-col h-full bg-white p-8 overflow-y-auto pb-10">
-      <div className="mt-8 mb-6">
+      <div className="flex items-center gap-3 mb-8">
+        <LogoIcon className="w-10 h-10" />
+        <LogoText size="text-2xl" />
+      </div>
+
+      <div className="mb-6">
         <h2 className="text-3xl font-black text-gray-900 tracking-tight">Final Step</h2>
         <p className="text-gray-500 mt-2 font-medium">Personalize your travel tracking experience.</p>
       </div>
@@ -78,7 +83,7 @@ const ProfileSetupScreen: React.FC<ProfileSetupProps> = ({ onSave }) => {
             <textarea
               value={bio}
               onChange={(e) => setBio(e.target.value)}
-              placeholder="e.g. I am Rahul Dravid, born on Jan 11 1973, Male."
+              placeholder="e.g. I am Arjun Sharma, born in 1995. I love traveling across India."
               className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-sm placeholder:text-white/40 outline-none focus:bg-white/20 transition-all h-20 resize-none mb-3 font-medium"
             />
             <button
@@ -106,7 +111,7 @@ const ProfileSetupScreen: React.FC<ProfileSetupProps> = ({ onSave }) => {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Arjun"
-              className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-gray-800"
+              className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-gray-800 shadow-sm"
             />
           </div>
           <div className="group">
@@ -116,7 +121,7 @@ const ProfileSetupScreen: React.FC<ProfileSetupProps> = ({ onSave }) => {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Sharma"
-              className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-gray-800"
+              className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-gray-800 shadow-sm"
             />
           </div>
         </div>
@@ -128,11 +133,8 @@ const ProfileSetupScreen: React.FC<ProfileSetupProps> = ({ onSave }) => {
             value={dob}
             max={maxDate}
             onChange={(e) => setDob(e.target.value)}
-            className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-gray-800"
+            className="w-full p-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-indigo-600 focus:bg-white outline-none transition-all font-bold text-gray-800 shadow-sm"
           />
-          <p className="mt-2 text-[9px] font-black text-gray-400 uppercase tracking-wider leading-relaxed">
-            Safety Note: You must be at least 10 years old to use RoamReceipt.
-          </p>
         </div>
 
         <div>
@@ -156,7 +158,7 @@ const ProfileSetupScreen: React.FC<ProfileSetupProps> = ({ onSave }) => {
       <button
         onClick={() => onSave({ firstName, lastName, dob, gender })}
         disabled={!isFormValid}
-        className={`w-full py-5 mt-8 rounded-2xl font-black text-lg tracking-tight shadow-xl transition-all transform active:scale-95 ${
+        className={`w-full py-5 mt-10 rounded-2xl font-black text-lg tracking-tight shadow-xl transition-all transform active:scale-95 ${
           isFormValid ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-gray-100 text-gray-300 cursor-not-allowed'
         }`}
       >

@@ -1,9 +1,8 @@
-
 import React, { useMemo } from 'react';
-// Fix: Removed non-existent ExpenseCategory export from types
 import { Trip } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { APP_CONFIG } from '../constants';
+import { LogoIcon } from '../components/Icons';
 
 interface StatsProps {
   trips: Trip[];
@@ -25,11 +24,14 @@ const MonthlyStatsScreen: React.FC<StatsProps> = ({ trips, onBack }) => {
 
   return (
     <div className="flex flex-col h-full bg-white p-6 overflow-y-auto">
-      <div className="flex items-center gap-4 mb-8">
-        <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <h2 className="text-2xl font-bold">Monthly Insights</h2>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          </button>
+          <h2 className="text-2xl font-bold">Monthly Insights</h2>
+        </div>
+        <LogoIcon className="w-8 h-8" />
       </div>
 
       <div className="bg-indigo-50 rounded-3xl p-6 mb-8 text-center border border-indigo-100">

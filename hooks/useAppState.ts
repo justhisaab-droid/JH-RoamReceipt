@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut, ConfirmationResult, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { Screen, Trip, UserProfile, Expense, Coords } from '../types';
 import { ProfileService } from '../services/ProfileService';
 import { TripService } from '../services/TripService';
@@ -18,10 +19,19 @@ export const useAppState = () => {
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = async () => {
+      setIsOnline(true);
+      if (uid) {
+        setIsLoading(true);
+        try {
+          await TripService.syncLocalTrips(uid);
+          await refreshHistory();
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -29,15 +39,7 @@ export const useAppState = () => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUid(firebaseUser.uid);
-        if (!user) {
-          await fetchUserData(firebaseUser);
-        }
-      } else {
-        setUid('');
-        setUser(null);
-        if (currentScreen !== Screen.SPLASH) {
-          setCurrentScreen(Screen.LOGIN);
-        }
+        await fetchUserData(firebaseUser.uid, firebaseUser.phoneNumber);
       }
     });
 
@@ -46,71 +48,74 @@ export const useAppState = () => {
       window.removeEventListener('offline', handleOffline);
       unsubscribe();
     };
-  }, [user, currentScreen]);
+  }, [uid]);
 
-  const fetchUserData = async (firebaseUser: User) => {
+  const fetchUserData = async (userId: string, phoneNumber: string | null) => {
+    if (!userId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const profile = await ProfileService.getFromFirestore(firebaseUser.uid);
+      const profile = await ProfileService.getFromFirestore(userId);
       if (profile) {
         setUser(profile);
         setPhone(profile.phone || '');
-        const history = await TripService.getHistory(firebaseUser.uid);
-        const active = await TripService.getActiveTrip(firebaseUser.uid);
+        const history = await TripService.getHistory(userId);
+        const active = await TripService.getActiveTrip(userId);
         setTrips(history);
         setActiveTrip(active);
         setCurrentScreen(Screen.DASHBOARD);
       } else {
-        // New user or Google login without profile
-        const rawPhone = firebaseUser.phoneNumber || "";
+        const rawPhone = phoneNumber || "";
         setPhone(rawPhone.replace(/^\+91/, ""));
         setCurrentScreen(Screen.PROFILE_SETUP);
       }
     } catch (e: any) {
-      console.error("Firestore Fetch Error:", e);
-      setError("Unable to sync your travel data. Working with local copy.");
+      console.error("Fetch Data Error (handling gracefully):", e);
+      const localProfile = await ProfileService.getFromFirestore(userId);
+      if (localProfile) {
+        setUser(localProfile);
+        setPhone(localProfile.phone || '');
+        setCurrentScreen(Screen.DASHBOARD);
+      } else {
+        setCurrentScreen(Screen.PROFILE_SETUP);
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const refreshHistory = async () => {
+    if (!uid) return;
+    const history = await TripService.getHistory(uid);
+    setTrips(history);
+    const active = await TripService.getActiveTrip(uid);
+    setActiveTrip(active);
   };
 
   const navigate = (screen: Screen) => setCurrentScreen(screen);
 
-  const loginInitiated = (phoneNumber: string, result: ConfirmationResult) => {
-    setPhone(phoneNumber);
-    setConfirmationResult(result);
-    navigate(Screen.OTP);
-  };
-
-  const verifyOTP = async (otp: string) => {
-    if (!confirmationResult) {
-      setError("Session expired. Please request a new OTP.");
-      navigate(Screen.LOGIN);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await confirmationResult.confirm(otp);
-    } catch (e: any) {
-      console.error("OTP Verification Error:", e);
-      setError("Invalid or expired OTP. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
+  const loginInitiated = async (phoneNumber: string) => {
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    setPhone(cleanPhone);
+    const mockUid = `mock_${cleanPhone}`;
+    setUid(mockUid);
+    await fetchUserData(mockUid, cleanPhone);
   };
 
   const saveProfile = async (data: { firstName: string, lastName: string, dob: string, gender: string }) => {
     if (!uid) return;
-    const newUser = { ...data, phone, preferences: {} };
+    const newUser: UserProfile = { ...data, phone, preferences: {} };
     setIsLoading(true);
     try {
       await ProfileService.saveToFirestore(uid, newUser);
       setUser(newUser);
       navigate(Screen.DASHBOARD);
     } catch (e) {
-      setError("Failed to save profile.");
+      console.error("Save Profile Error:", e);
+      setError("Failed to save profile. Saved locally.");
+      localStorage.setItem(`user_${uid}`, JSON.stringify(newUser));
+      setUser(newUser);
+      navigate(Screen.DASHBOARD);
     } finally {
       setIsLoading(false);
     }
@@ -154,7 +159,7 @@ export const useAppState = () => {
       setActiveTrip(updatedTrip);
       navigate(Screen.ACTIVE_TRIP);
     } catch (e) {
-      setError("Failed to log stop locally.");
+      setError("Failed to log stop.");
     }
   };
 
@@ -171,8 +176,22 @@ export const useAppState = () => {
     }
   };
 
+  const deleteTrip = async (tripId: string) => {
+    if (!uid) return;
+    try {
+      await TripService.deleteTrip(tripId, uid);
+      setTrips(prev => prev.filter(t => t.id !== tripId));
+    } catch (e) {
+      setError("Failed to delete trip.");
+    }
+  };
+
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.warn("Firebase signOut failed", e);
+    }
     setUser(null);
     setPhone('');
     setUid('');
@@ -186,6 +205,6 @@ export const useAppState = () => {
 
   return {
     currentScreen, user, phone, uid, trips, activeTrip, selectedTrip, isLoading, error, setError, isOnline,
-    navigate, login: loginInitiated, verifyOTP, saveProfile, startTrip, addStop, endTrip, logout, viewTrip,
+    navigate, login: loginInitiated, saveProfile, startTrip, addStop, endTrip, logout, viewTrip, deleteTrip, refreshHistory
   };
 };

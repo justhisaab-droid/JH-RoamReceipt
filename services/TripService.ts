@@ -1,8 +1,7 @@
 
 import { Trip, Coords } from '../types';
 import { db } from './FirestoreService';
-// Fixed: Switched from 'firebase/firestore/lite' to 'firebase/firestore' to resolve missing export errors
-import { collection, doc, setDoc, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, query, where, orderBy, getDocs, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 export class TripService {
   static createTripObject(params: {
@@ -34,30 +33,109 @@ export class TripService {
   }
 
   static async saveTrip(trip: Trip): Promise<void> {
-    const tripRef = doc(db, 'trips', trip.id);
-    await setDoc(tripRef, trip);
+    const storageKey = `trips_${trip.userId}`;
+    const localTrips = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const index = localTrips.findIndex((t: Trip) => t.id === trip.id);
+    
+    if (index > -1) localTrips[index] = trip;
+    else localTrips.push(trip);
+    
+    localStorage.setItem(storageKey, JSON.stringify(localTrips));
+
+    // Try Firestore Sync
+    if (!trip.userId.startsWith('mock_') && navigator.onLine) {
+      try {
+        const tripRef = doc(db, 'trips', trip.id);
+        await setDoc(tripRef, {
+          ...trip,
+          syncedAt: Date.now(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (e) {
+        console.warn("Firestore saveTrip failed, will retry on next connection", e);
+      }
+    }
+  }
+
+  static async deleteTrip(tripId: string, userId: string): Promise<void> {
+    const storageKey = `trips_${userId}`;
+    const localTrips = JSON.parse(localStorage.getItem(storageKey) || '[]');
+    const filtered = localTrips.filter((t: Trip) => t.id !== tripId);
+    localStorage.setItem(storageKey, JSON.stringify(filtered));
+
+    if (!userId.startsWith('mock_')) {
+      try {
+        await deleteDoc(doc(db, 'trips', tripId));
+      } catch (e) {
+        console.warn("Firestore deleteTrip failed", e);
+      }
+    }
   }
 
   static async getHistory(userId: string): Promise<Trip[]> {
-    const tripsRef = collection(db, 'trips');
-    const q = query(
-      tripsRef, 
-      where('userId', '==', userId), 
-      where('status', '==', 'completed'),
-      orderBy('startTime', 'desc')
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map(doc => doc.data() as Trip);
+    const localTrips = JSON.parse(localStorage.getItem(`trips_${userId}`) || '[]');
+    const completedLocal = localTrips.filter((t: Trip) => t.status === 'completed').sort((a: Trip, b: Trip) => b.startTime - a.startTime);
+
+    if (userId.startsWith('mock_')) return completedLocal;
+
+    if (navigator.onLine) {
+      try {
+        const tripsRef = collection(db, 'trips');
+        const q = query(
+          tripsRef, 
+          where('userId', '==', userId), 
+          where('status', '==', 'completed'),
+          orderBy('startTime', 'desc')
+        );
+        const snap = await getDocs(q);
+        const firestoreTrips = snap.docs.map(doc => doc.data() as Trip);
+        if (firestoreTrips.length > 0) {
+          // Sync local storage with latest from cloud
+          localStorage.setItem(`trips_${userId}`, JSON.stringify([...firestoreTrips, ...localTrips.filter(lt => !firestoreTrips.some(ft => ft.id === lt.id))]));
+          return firestoreTrips;
+        }
+      } catch (e) {
+        console.warn("Firestore getHistory failed, falling back to local storage", e);
+      }
+    }
+    return completedLocal;
   }
 
   static async getActiveTrip(userId: string): Promise<Trip | null> {
-    const tripsRef = collection(db, 'trips');
-    const q = query(
-      tripsRef, 
-      where('userId', '==', userId), 
-      where('status', '==', 'active')
-    );
-    const snap = await getDocs(q);
-    return snap.empty ? null : (snap.docs[0].data() as Trip);
+    const localTrips = JSON.parse(localStorage.getItem(`trips_${userId}`) || '[]');
+    const activeLocal = localTrips.find((t: Trip) => t.status === 'active') || null;
+
+    if (userId.startsWith('mock_')) return activeLocal;
+
+    if (navigator.onLine) {
+      try {
+        const tripsRef = collection(db, 'trips');
+        const q = query(
+          tripsRef, 
+          where('userId', '==', userId), 
+          where('status', '==', 'active')
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const remoteActive = snap.docs[0].data() as Trip;
+          // Update local cache
+          this.saveTrip(remoteActive);
+          return remoteActive;
+        }
+      } catch (e) {
+        console.warn("Firestore getActiveTrip failed", e);
+      }
+    }
+    return activeLocal;
+  }
+
+  static async syncLocalTrips(userId: string): Promise<void> {
+    if (userId.startsWith('mock_') || !navigator.onLine) return;
+    
+    const localTrips = JSON.parse(localStorage.getItem(`trips_${userId}`) || '[]');
+    for (const trip of localTrips) {
+      // Logic to determine if sync is needed (e.g., missing syncedAt or modified recently)
+      await this.saveTrip(trip);
+    }
   }
 }

@@ -4,7 +4,7 @@ import { APP_CONFIG } from '../constants';
 import { useLocation } from '../hooks/useLocation';
 import { LocationService, PlaceResult } from '../services/LocationService';
 import { ExpenseService, CategoryItem } from '../services/ExpenseService';
-import { CameraIcon, CrosshairIcon, XIcon, PinIcon, SparklesIcon } from '../components/Icons';
+import { CameraIcon, CrosshairIcon, XIcon, PinIcon, SparklesIcon, LogoIcon } from '../components/Icons';
 import { useAppState } from '../hooks/useAppState';
 
 interface AddStopProps {
@@ -153,12 +153,15 @@ const AddStopScreen: React.FC<AddStopProps> = ({ trip, onSave, onBack, isOnline 
         <button onClick={onBack} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 transition-transform active:scale-90">
           <XIcon className="w-5 h-5 text-gray-500" />
         </button>
-        <div>
-          <h2 className="text-xl font-black text-gray-900 leading-none">Add Stop</h2>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black text-gray-900 leading-none">Add Stop</h2>
+            <LogoIcon className="w-5 h-5" />
+          </div>
           <p className="text-[10px] font-bold text-gray-400 uppercase mt-1 truncate max-w-[200px]">{locationAddress}</p>
         </div>
         {!isOnline && (
-          <div className="ml-auto bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
+          <div className="bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
             <span className="text-[8px] font-black text-amber-700 uppercase">Offline</span>
           </div>
         )}
