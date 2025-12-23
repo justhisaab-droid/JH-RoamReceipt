@@ -1,6 +1,7 @@
 export enum Screen {
   SPLASH = 'SPLASH',
   LOGIN = 'LOGIN',
+  OTP = 'OTP',
   PROFILE_SETUP = 'PROFILE_SETUP',
   DASHBOARD = 'DASHBOARD',
   TRIP_SETUP = 'TRIP_SETUP',

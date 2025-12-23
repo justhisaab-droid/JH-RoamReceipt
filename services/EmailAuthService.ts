@@ -2,7 +2,7 @@ import {
   signInWithPopup, 
   UserCredential
 } from 'firebase/auth';
-import { auth, googleProvider } from './FirebaseService';
+import { auth, googleProvider } from './FirebaseService.ts';
 
 export class EmailAuthService {
   /**

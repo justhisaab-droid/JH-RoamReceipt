@@ -3,8 +3,8 @@ import {
   signInWithPhoneNumber, 
   ConfirmationResult
 } from 'firebase/auth';
-import { auth } from './FirebaseService';
-import { APP_CONFIG } from '../constants';
+import { auth } from './FirebaseService.ts';
+import { APP_CONFIG } from '../constants.tsx';
 
 export class PhoneAuthService {
   /**

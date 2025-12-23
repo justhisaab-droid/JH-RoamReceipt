@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged, signOut, ConfirmationResult } from 'firebase/auth';
 import { Screen, Trip, UserProfile, Expense, Coords } from '../types';
 import { ProfileService } from '../services/ProfileService';
 import { TripService } from '../services/TripService';
@@ -18,6 +17,7 @@ export const useAppState = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [otpConfirmation, setOtpConfirmation] = useState<ConfirmationResult | null>(null);
   
   useEffect(() => {
     const handleOnline = async () => {
@@ -40,6 +40,13 @@ export const useAppState = () => {
       if (firebaseUser) {
         setUid(firebaseUser.uid);
         await fetchUserData(firebaseUser.uid, firebaseUser.phoneNumber);
+      } else {
+        // Only reset if we were previously logged in or if on splash
+        if (uid && !uid.startsWith('mock_')) {
+            setUid('');
+            setUser(null);
+            setCurrentScreen(Screen.LOGIN);
+        }
       }
     });
 
@@ -70,15 +77,8 @@ export const useAppState = () => {
         setCurrentScreen(Screen.PROFILE_SETUP);
       }
     } catch (e: any) {
-      console.error("Fetch Data Error (handling gracefully):", e);
-      const localProfile = await ProfileService.getFromFirestore(userId);
-      if (localProfile) {
-        setUser(localProfile);
-        setPhone(localProfile.phone || '');
-        setCurrentScreen(Screen.DASHBOARD);
-      } else {
-        setCurrentScreen(Screen.PROFILE_SETUP);
-      }
+      console.error("Fetch Data Error:", e);
+      setCurrentScreen(Screen.PROFILE_SETUP);
     } finally {
       setIsLoading(false);
     }
@@ -94,12 +94,23 @@ export const useAppState = () => {
 
   const navigate = (screen: Screen) => setCurrentScreen(screen);
 
-  const loginInitiated = async (phoneNumber: string) => {
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    setPhone(cleanPhone);
-    const mockUid = `mock_${cleanPhone}`;
-    setUid(mockUid);
-    await fetchUserData(mockUid, cleanPhone);
+  const loginWithOtp = async (phoneNumber: string, confirmation: ConfirmationResult) => {
+    setPhone(phoneNumber);
+    setOtpConfirmation(confirmation);
+    setCurrentScreen(Screen.OTP);
+  };
+
+  const verifyOtp = async (code: string) => {
+    if (!otpConfirmation) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      await otpConfirmation.confirm(code);
+      // fetchUserData will be triggered by onAuthStateChanged
+    } catch (e: any) {
+      setError("Invalid verification code. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   const saveProfile = async (data: { firstName: string, lastName: string, dob: string, gender: string }) => {
@@ -112,10 +123,7 @@ export const useAppState = () => {
       navigate(Screen.DASHBOARD);
     } catch (e) {
       console.error("Save Profile Error:", e);
-      setError("Failed to save profile. Saved locally.");
-      localStorage.setItem(`user_${uid}`, JSON.stringify(newUser));
-      setUser(newUser);
-      navigate(Screen.DASHBOARD);
+      setError("Failed to save profile.");
     } finally {
       setIsLoading(false);
     }
@@ -205,6 +213,6 @@ export const useAppState = () => {
 
   return {
     currentScreen, user, phone, uid, trips, activeTrip, selectedTrip, isLoading, error, setError, isOnline,
-    navigate, login: loginInitiated, saveProfile, startTrip, addStop, endTrip, logout, viewTrip, deleteTrip, refreshHistory
+    navigate, loginWithOtp, verifyOtp, saveProfile, startTrip, addStop, endTrip, logout, viewTrip, deleteTrip, refreshHistory
   };
 };

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { LogoIcon, LogoText } from '../components/Icons';
+import { LogoIcon, LogoText } from '../components/Icons.tsx';
 
 const SplashScreen: React.FC<{ onComplete: () => void }> = ({ onComplete }) => {
   useEffect(() => {

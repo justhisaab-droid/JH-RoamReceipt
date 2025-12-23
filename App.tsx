@@ -1,19 +1,20 @@
 import React from 'react';
-import { Screen } from './types';
-import SplashScreen from './screens/SplashScreen';
-import LoginScreen from './screens/LoginScreen';
-import ProfileSetupScreen from './screens/ProfileSetupScreen';
-import DashboardScreen from './screens/DashboardScreen';
-import TripSetupScreen from './screens/TripSetupScreen';
-import ActiveTripScreen from './screens/ActiveTripScreen';
-import AddStopScreen from './screens/AddStopScreen';
-import TripSummaryScreen from './screens/TripSummaryScreen';
-import TripDetailsScreen from './screens/TripDetailsScreen';
-import MonthlyStatsScreen from './screens/MonthlyStatsScreen';
-import ProfileSettingsScreen from './screens/ProfileSettingsScreen';
-import TripArchiveScreen from './screens/TripArchiveScreen';
-import { useAppState } from './hooks/useAppState';
-import { HomeIcon, ClockIcon, UserIcon, MapIcon, CloudIcon, CloudOffIcon, RefreshIcon } from './components/Icons';
+import { Screen } from './types.ts';
+import SplashScreen from './screens/SplashScreen.tsx';
+import LoginScreen from './screens/LoginScreen.tsx';
+import OTPScreen from './screens/OTPScreen.tsx';
+import ProfileSetupScreen from './screens/ProfileSetupScreen.tsx';
+import DashboardScreen from './screens/DashboardScreen.tsx';
+import TripSetupScreen from './screens/TripSetupScreen.tsx';
+import ActiveTripScreen from './screens/ActiveTripScreen.tsx';
+import AddStopScreen from './screens/AddStopScreen.tsx';
+import TripSummaryScreen from './screens/TripSummaryScreen.tsx';
+import TripDetailsScreen from './screens/TripDetailsScreen.tsx';
+import MonthlyStatsScreen from './screens/MonthlyStatsScreen.tsx';
+import ProfileSettingsScreen from './screens/ProfileSettingsScreen.tsx';
+import TripArchiveScreen from './screens/TripArchiveScreen.tsx';
+import { useAppState } from './hooks/useAppState.ts';
+import { HomeIcon, ClockIcon, UserIcon, MapIcon, CloudIcon, CloudOffIcon, RefreshIcon } from './components/Icons.tsx';
 
 const App: React.FC = () => {
   const state = useAppState();
@@ -25,7 +26,9 @@ const App: React.FC = () => {
       case Screen.SPLASH:
         return <SplashScreen onComplete={() => state.navigate(Screen.LOGIN)} />;
       case Screen.LOGIN:
-        return <LoginScreen onLogin={(phone) => state.login(phone)} />;
+        return <LoginScreen onLogin={(phone, result) => state.loginWithOtp(phone, result)} />;
+      case Screen.OTP:
+        return <OTPScreen phone={state.phone} onVerify={state.verifyOtp} onBack={() => state.navigate(Screen.LOGIN)} />;
       case Screen.PROFILE_SETUP:
         return <ProfileSetupScreen onSave={state.saveProfile} />;
       case Screen.DASHBOARD:
@@ -207,13 +210,22 @@ const App: React.FC = () => {
   );
 };
 
-const NavButton: React.FC<{ active: boolean, onClick: () => void, icon: React.ReactNode, label: string }> = ({ active, onClick, icon, label }) => (
+interface NavButtonProps {
+  active: boolean;
+  onClick: () => void;
+  // Fix: Typed icon more specifically as React.ReactElement<any> to avoid className typing issues in React.cloneElement
+  icon: React.ReactElement<any>;
+  label: string;
+}
+
+const NavButton: React.FC<NavButtonProps> = ({ active, onClick, icon, label }) => (
   <button 
     onClick={onClick}
     className="flex flex-col items-center justify-center gap-1 group active:scale-90 transition-all"
   >
     <div className={`p-2 rounded-2xl transition-all duration-300 ${active ? 'bg-indigo-100 text-indigo-600 scale-110' : 'text-gray-400 group-hover:text-gray-600'}`}>
-      {React.cloneElement(icon as React.ReactElement<{ className?: string }>, { className: 'w-6 h-6' })}
+      {/* Fix: Added as any to the props argument of React.cloneElement to satisfy TS compiler regarding missing className on arbitrary elements */}
+      {React.cloneElement(icon, { className: 'w-6 h-6' } as any)}
     </div>
     <span className={`text-[10px] font-black uppercase tracking-wider transition-all ${active ? 'text-indigo-600 opacity-100' : 'text-gray-400 opacity-0 group-hover:opacity-100'}`}>
       {label}

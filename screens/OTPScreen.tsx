@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { APP_CONFIG } from '../constants';
-import { LogoIcon } from '../components/Icons';
+import { APP_CONFIG } from '../constants.tsx';
+import { LogoIcon } from '../components/Icons.tsx';
 
 interface OTPScreenProps {
   phone: string;

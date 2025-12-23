@@ -1,16 +1,11 @@
-
-
 import { getFirestore } from 'firebase/firestore';
-import { app } from './FirebaseService';
-import { FIRESTORE_DATABASE_ID } from './FirebaseConfigService';
+import { app } from './FirebaseService.ts';
+import { FIRESTORE_DATABASE_ID } from './FirebaseConfigService.ts';
 
 /**
  * Initialize Firestore. 
- * If FIRESTORE_DATABASE_ID is specified and not "(default)", 
- * we use the multi-database feature of Cloud Firestore.
  */
 const initializeDatabase = () => {
-  // Added string cast to FIRESTORE_DATABASE_ID to avoid TypeScript comparison error with literal types
   if (FIRESTORE_DATABASE_ID && (FIRESTORE_DATABASE_ID as string) !== '(default)') {
     try {
       return getFirestore(app, FIRESTORE_DATABASE_ID);
