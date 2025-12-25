@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, signOut, ConfirmationResult } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { Screen, Trip, UserProfile, Expense, Coords } from '../types';
 import { ProfileService } from '../services/ProfileService';
 import { TripService } from '../services/TripService';
@@ -17,7 +17,7 @@ export const useAppState = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [otpConfirmation, setOtpConfirmation] = useState<ConfirmationResult | null>(null);
+  const [otpConfirmation, setOtpConfirmation] = useState<any>(null);
   
   useEffect(() => {
     const handleOnline = async () => {
@@ -36,12 +36,12 @@ export const useAppState = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
+    // Modular syntax for state observer
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUid(firebaseUser.uid);
         await fetchUserData(firebaseUser.uid, firebaseUser.phoneNumber);
       } else {
-        // Only reset if we were previously logged in or if on splash
         if (uid && !uid.startsWith('mock_')) {
             setUid('');
             setUser(null);
@@ -94,7 +94,7 @@ export const useAppState = () => {
 
   const navigate = (screen: Screen) => setCurrentScreen(screen);
 
-  const loginWithOtp = async (phoneNumber: string, confirmation: ConfirmationResult) => {
+  const loginWithOtp = async (phoneNumber: string, confirmation: any) => {
     setPhone(phoneNumber);
     setOtpConfirmation(confirmation);
     setCurrentScreen(Screen.OTP);
@@ -106,7 +106,6 @@ export const useAppState = () => {
     setError(null);
     try {
       await otpConfirmation.confirm(code);
-      // fetchUserData will be triggered by onAuthStateChanged
     } catch (e: any) {
       setError("Invalid verification code. Please try again.");
       setIsLoading(false);

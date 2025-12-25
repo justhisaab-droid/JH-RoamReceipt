@@ -65,15 +65,15 @@
     "firebase/auth": "https://esm.sh/firebase@12.7.0/auth",
     "firebase/firestore": "https://esm.sh/firebase@12.7.0/firestore",
     "firebase/": "https://esm.sh/firebase@12.7.0/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/"
+    "react/": "https://esm.sh/react@19.0.0/",
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
-    <!-- Global ReCAPTCHA Container for stability -->
-    <div id="global-recaptcha-container" style="position: fixed; bottom: 0; left: 0; opacity: 0; pointer-events: none; z-index: -1;"></div>
+    <!-- Container for ReCAPTCHA - must exist for Phone Auth -->
+    <div id="global-recaptcha-container"></div>
 </body>
 </html>
