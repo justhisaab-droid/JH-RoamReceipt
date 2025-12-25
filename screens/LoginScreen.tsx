@@ -13,19 +13,24 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unauthorizedDomain, setUnauthorizedDomain] = useState<string | null>(null);
+  const [recaptchaError, setRecaptchaError] = useState<string | null>(null);
   const verifierRef = useRef<RecaptchaVerifier | null>(null);
 
   useEffect(() => {
-    // Detect domain error early if hostname is not authorized
     const setupVerifier = () => {
       try {
         if (verifierRef.current) {
           verifierRef.current.clear();
         }
-        verifierRef.current = AuthService.createVerifier('global-recaptcha-container', { size: 'invisible' });
+        const v = AuthService.createVerifier('global-recaptcha-container', { size: 'invisible' });
+        verifierRef.current = v;
       } catch (err: any) {
         console.error("LoginScreen: Verifier setup error", err);
-        setError("Security initialization failed. Try refreshing.");
+        if (err.message.startsWith('RECAPTCHA_CONFIG_ERROR|') || err.message.startsWith('UNAUTHORIZED_DOMAIN|')) {
+           setRecaptchaError(err.message.split('|')[1]);
+        } else {
+           setError("Security initialization failed. Try refreshing.");
+        }
       }
     };
 
@@ -46,13 +51,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     if (phone.length !== 10 || isLoading) return;
 
     if (!verifierRef.current) {
-      setError("Security check is not ready. Please wait a moment.");
+      // If verifier is null, it likely failed during setup due to domain issues
+      const domain = window.location.hostname;
+      setRecaptchaError(domain);
       return;
     }
 
     setIsLoading(true);
     setError(null);
     setUnauthorizedDomain(null);
+    setRecaptchaError(null);
     
     try {
       const result = await AuthService.sendOTP(phone, verifierRef.current);
@@ -64,6 +72,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         const domain = err.message.split('|')[1];
         setUnauthorizedDomain(domain);
         setError(null); 
+      } else if (err.message.startsWith('RECAPTCHA_CONFIG_ERROR|')) {
+        setRecaptchaError(err.message.split('|')[1]);
+        setError(null);
       } else {
         setError(err.message);
       }
@@ -81,6 +92,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     setIsLoading(true);
     setError(null);
     setUnauthorizedDomain(null);
+    setRecaptchaError(null);
     try {
       await AuthService.loginWithGoogle();
     } catch (err: any) {
@@ -99,6 +111,53 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     navigator.clipboard.writeText(text);
     alert('Domain copied to clipboard!');
   };
+
+  const DomainSetupUI = ({ domain, title }: { domain: string, title: string }) => (
+    <div className="p-6 bg-amber-50 rounded-[32px] border-2 border-amber-200 animate-in zoom-in-95 duration-300 shadow-xl shadow-amber-100/50 my-4">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        </div>
+        <h3 className="text-sm font-black text-amber-900 uppercase tracking-tight leading-tight">{title}</h3>
+      </div>
+      
+      <p className="text-[11px] text-amber-800 font-bold mb-4 leading-relaxed">
+        The error <b>"Invalid site key"</b> means Firebase reCAPTCHA doesn't trust this domain. This is common in browser previews.
+      </p>
+      
+      <div className="bg-white border border-amber-200 p-3 rounded-xl flex items-center justify-between gap-3 mb-4 shadow-inner">
+        <code className="text-[10px] font-black text-gray-800 break-all">{domain}</code>
+        <button 
+          onClick={() => copyToClipboard(domain)} 
+          className="text-[10px] font-black text-indigo-600 uppercase shrink-0 hover:underline active:scale-95"
+        >
+          Copy
+        </button>
+      </div>
+      
+      <div className="space-y-2">
+         <p className="text-[9px] text-amber-700 font-medium">
+           1. Go to <a href="https://console.firebase.google.com" target="_blank" className="underline font-black">Firebase Console</a>
+         </p>
+         <p className="text-[9px] text-amber-700 font-medium">
+           2. Select project: <b>justhisaab-80c17</b>
+         </p>
+         <p className="text-[9px] text-amber-700 font-medium">
+           3. Navigate to <b>Authentication</b> &gt; <b>Settings</b> &gt; <b>Authorized Domains</b>
+         </p>
+         <p className="text-[9px] text-amber-700 font-medium">
+           4. Add the domain copied above to authorize reCAPTCHA.
+         </p>
+      </div>
+      
+      <button 
+        onClick={() => window.location.reload()}
+        className="w-full mt-4 py-3 bg-amber-500 text-white font-black text-[10px] uppercase rounded-xl active:scale-95 transition-all shadow-md"
+      >
+        I've Added It, Reload App
+      </button>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full bg-white p-8 animate-in fade-in duration-500 overflow-y-auto">
@@ -165,45 +224,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
           CONTINUE WITH GOOGLE
         </button>
 
-        {unauthorizedDomain && (
-          <div className="p-6 bg-amber-50 rounded-[32px] border-2 border-amber-200 animate-in zoom-in-95 duration-300 shadow-xl shadow-amber-100/50">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-amber-500 rounded-full flex items-center justify-center text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-              </div>
-              <h3 className="text-sm font-black text-amber-900 uppercase tracking-tight">Domain Setup Required</h3>
-            </div>
-            
-            <p className="text-[11px] text-amber-800 font-bold mb-4 leading-relaxed">
-              Firebase needs to authorize this domain to allow Phone Auth & Google Sign-In. This is why you see <b>"Invalid domain for site key"</b>.
-            </p>
-            
-            <div className="bg-white border border-amber-200 p-3 rounded-xl flex items-center justify-between gap-3 mb-4 shadow-inner">
-              <code className="text-[10px] font-black text-gray-800 break-all">{unauthorizedDomain}</code>
-              <button 
-                onClick={() => copyToClipboard(unauthorizedDomain)} 
-                className="text-[10px] font-black text-indigo-600 uppercase shrink-0 hover:underline active:scale-95"
-              >
-                Copy
-              </button>
-            </div>
-            
-            <div className="space-y-2">
-               <p className="text-[9px] text-amber-700 font-medium">
-                 1. Go to <a href="https://console.firebase.google.com" target="_blank" className="underline font-black">Firebase Console</a>
-               </p>
-               <p className="text-[9px] text-amber-700 font-medium">
-                 2. Select project <b>justhisaab-80c17</b>
-               </p>
-               <p className="text-[9px] text-amber-700 font-medium">
-                 3. Go to <b>Authentication</b> &gt; <b>Settings</b> &gt; <b>Authorized Domains</b>
-               </p>
-               <p className="text-[9px] text-amber-700 font-medium">
-                 4. Click <b>Add domain</b> and paste the domain copied above.
-               </p>
-            </div>
-          </div>
-        )}
+        {unauthorizedDomain && <DomainSetupUI domain={unauthorizedDomain} title="Domain Setup Required" />}
+        {recaptchaError && <DomainSetupUI domain={recaptchaError} title="reCAPTCHA Domain Blocked" />}
 
         {error && (
           <div className="p-5 bg-red-50 rounded-[20px] border border-red-100 animate-in shake duration-300">

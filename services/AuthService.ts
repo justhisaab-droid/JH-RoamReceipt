@@ -32,8 +32,12 @@ export class AuthService {
   static createVerifier(containerId: string = 'global-recaptcha-container', options: any = { size: 'invisible' }): RecaptchaVerifier {
     try {
       const container = document.getElementById(containerId);
-      if (container) container.innerHTML = ''; 
+      if (container) {
+        container.innerHTML = ''; 
+      }
 
+      // Check if the domain is potentially unauthorized before even trying
+      // as reCAPTCHA might throw a hard error that skips the try/catch sometimes
       const verifier = new RecaptchaVerifier(auth, containerId, {
         ...options,
         'callback': (response: any) => {
@@ -43,13 +47,27 @@ export class AuthService {
           console.warn("AuthService: ReCAPTCHA expired. Please try again.");
         },
         'error-callback': (error: any) => {
-          console.error("AuthService: ReCAPTCHA Error:", error);
+          console.error("AuthService: ReCAPTCHA Error callback:", error);
         }
       });
 
       return verifier;
     } catch (error: any) {
       console.error("AuthService: Failed to create RecaptchaVerifier:", error);
+      
+      const domain = window.location.hostname;
+      const errorMsg = error.message || "";
+      
+      // Specifically target the reCAPTCHA domain/key error
+      if (
+        errorMsg.includes('site key') || 
+        errorMsg.includes('api.js') || 
+        errorMsg.includes('not loaded') ||
+        error.code === 'auth/unauthorized-domain'
+      ) {
+        throw new Error(`RECAPTCHA_CONFIG_ERROR|${domain}`);
+      }
+      
       throw new Error("Security check initialization failed. Please refresh the app.");
     }
   }
@@ -64,7 +82,6 @@ export class AuthService {
     } catch (error: any) {
       console.error("AuthService: Phone Auth Error Details:", error.code, error.message);
       
-      // auth/unauthorized-domain is the primary error for missing host whitelist
       if (error.code === 'auth/unauthorized-domain' || error.code === 'auth/internal-error') {
         const domain = window.location.hostname || 'your-domain.com';
         throw new Error(`UNAUTHORIZED_DOMAIN|${domain}`);
